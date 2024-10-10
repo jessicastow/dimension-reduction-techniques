@@ -1,0 +1,34 @@
+Miguel's Suggestions for approach
+
+For each method:
+* Plot:
+    * All populations together
+    * Each population separately
+* Plot advice:
+    * Use semi-transparent points
+    * Display label of each cluster at its mean position
+* Record the time
+* Display time
+For plots where there are difficulties:
+* Attempt to improve the plot
+* State why you think it failed (if you can guess)
+* Attempt to fix the issue
+* Report the results (either in an appendix, or in the main text if it worked)
+Commenting on the results:
+* Try to discuss the parameters you used
+* Try to explain why it worked (if it did), or, following the above, why it didn't
+* Please try to be concise
+* Discuss time
+* Discuss whether you were able to separate major and/or minor populations
+If a method is inappropriate:
+* If it's just too slow (like MDS probably is), then take a subset of the points and note that
+* If it's not appropriate for the data, then note that and justify that (e.g. SOMs probably not really that useful here)
+You could calculate a per-cluster separation statistic:
+* For example:
+    * For each combination of clusters, calculate the standardized distance between the clusters
+    * By "standardized distance," we mean in some sense, e.g. the distance between the means of the clusters divided by the sum of the standard deviations of the clusters
+    * These results could be displayed in a table, or a heat map.
+
+Number of methods to try:
+* Try different approaches, e.g. linear, distance-preserving (MDS) and non-linear (e.g. isoMDS, autoencoders)
+I can make the code above available.
