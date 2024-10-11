@@ -26,3 +26,499 @@ This report's repository can be viewed on [my GitHub profile](https://github.com
 -   I acknowledge that copying someone else’s assignment or essay, or part of it, is wrong, and declare that this is my own work.
 
 \newpage
+
+# Introduction to Dimension Reduction Techniques
+
+# Visualisation of Flow Cytometry data
+
+```{r}
+library(tibble)
+library(ggplot2)
+library(dplyr)
+```
+
+## Objective
+
+The aim of this task is to apply a variety of dimensionality reduction techniques to produce two-dimensional visualisations of the dataset and critically evaluate the effectiveness of each method in distinguishing between different cell types.
+
+
+## Data Description
+
+The dataset analysed in this task is derived from a large flow cytometry study and includes the expression levels of 17 markers across various cell types. The markers used were: `cd3`, `cd4`, `cd8`, `cd19`, `cd20`, `cd16`, `cd56`, `cxcr3`, `ccr6`, `ccr4`, `igd`, `tcrgd`, `va7.2`, `cd161`, `cd27`, `cd45ra`, and `ccr7`. These markers made up the features to describe the major and minor cell types.
+
+```{r}
+# Read in data
+cyt <- read.csv("data/flow_cytometry_data.csv")
+# view column names
+colnames(cyt)
+```
+
+
+There are 6 major cell types, which make up the following percentages of the data:
+
+### Table 1: Major cell types and percentages of data
+| **Major Cell Type** | **Percentage (%)**  |
+|---------------------|---------------------|
+| b                   | 8.75                |
+| cd4                 | 46.30               |
+| cd8                 | 35.81               |
+| mait                | 2.24                |
+| nk                  | 5.71                |
+| tcrgd               | 1.19                |
+
+```{r}
+# the major cell types are distributed as follows
+cyt %>%
+  mutate(total = n()) %>%
+  group_by(major) %>%
+  summarise(
+    percentage = round(n() / total[[1]] * 100, 2),
+      .groups = "drop"
+  )
+```
+
+
+Within each major cell type, the minor cell types are distributed as follows:
+
+### Table 2: Major and Minor Cell Types with Percentages
+| **Major Cell Type** | **Minor Cell Type** | **Percentage (%)** |
+|---------------------|---------------------|--------------------|
+| b                   | memory              | 1.34               |
+| b                   | naive               | 6.67               |
+| b                   | plasma              | 0.74               |
+| cd4                 | centralmemory       | 9.39               |
+| cd4                 | effectormemory      | 15.20              |
+| cd4                 | naive               | 12.40              |
+| cd4                 | th1                 | 3.94               |
+| cd4                 | th2                 | 5.36               |
+| cd8                 | centralmemory       | 11.85              |
+| cd8                 | cytotoxic           | 4.13               |
+| cd8                 | effectormemory      | 13.43              |
+| cd8                 | naive               | 6.40               |
+| mait                | cd4+                | 0.59               |
+| mait                | cd8+                | 1.66               |
+| nk                  | cd56+cd16-          | 0.37               |
+| nk                  | cd56bright          | 2.96               |
+| nk                  | cd56dim             | 2.38               |
+| tcrgd               | vdelta1             | 0.48               |
+| tcrgd               | vgamma9vdelta2      | 0.71               |
+
+```{r}
+# Within each major cell type, the minor cell types are distributed as follows
+cyt %>%
+  mutate(total = n()) %>%
+  group_by(major, minor) %>%
+  summarise(
+    percentage = round(n() / total[[1]] * 100, 2),
+      .groups = "drop"
+  )
+```
+
+
+
+
+```{r}
+cyt <- cyt %>% 
+  mutate(
+    major_minor = paste(major, minor, sep = "_")
+  ) %>%
+  select(
+    major_minor, major, minor, everything()
+  )
+```
+```{r}
+col_vec_bcell <- c(
+  "#deebf7", "#9ecae1", "3182bd"
+)
+
+col_vec_cd4 <- c(
+  "#7c9c90", "#a1d99b", "#74c476", 
+  "#31a354", "#006d2c"
+)
+
+col_vec_cd8 <- c(
+  "#bdbdbd", "#969696", "#636363", 
+  "#252525"
+)
+
+col_vec_mait <- c(
+  "#fee6ce", "#fdae6b"
+)
+
+col_vec_nk <- c(
+  "#dadaeb", "#9e9ac8", "#654278f"
+)
+
+col_vec_tcrgd <- c(
+  "#ffb6a4", "#cb181d"
+)
+
+```
+
+
+```{r}
+display_tbl_flow <- cyt %>%
+  mutate(n_all = n()) %>%
+  group_by(major) %>%
+  mutate(n_major = n()) %>%
+  ungroup() %>%
+  select(major_minor, major, minor, n_all, n_major) %>%
+  group_by(major_minor, major, minor) %>% 
+  summarise(
+    perc_all = n()/n_all[1]*1e2 %>%
+      signif(2),
+    perc_major = n()/n_major[1]*1e2 %>%
+      signif(2),
+    .groups = "drop"
+  ) %>%
+  ungroup() %>%
+  mutate(
+    col_minor = c(
+      col_vec_bcell, col_vec_cd4, col_vec_cd8, col_vec_mait, col_vec_nk, col_vec_tcrgd
+    )
+  ) %>%
+  mutate(
+    col_major = c(
+      rep(col_vec_bcell[2], 3),
+      rep(col_vec_cd4[3], 5),
+      rep(col_vec_cd8[2], 4),
+      rep(col_vec_mait[2], 2),
+      rep(col_vec_nk[2], 3),
+      rep(col_vec_tcrgd[2], 2)
+    )
+  ) %>%
+  mutate(
+    # use a different shape for each minor
+    # type with minor, but can repeat
+    # shapes between major types
+    shape_minor = c(
+      15:17, c(15:18, 25), c(15:18), c(15:16), c(15:17), c(15:16)
+    ), 
+    # now use a different shape for each major type
+    shape_major = c(
+      rep(15,3),
+      rep(16, 5),
+      rep(17, 4),
+      rep(18, 2),
+      rep(25, 3),
+      rep(10, 2)
+    )
+  ) %>%
+  select(
+    major_minor,major, minor, col_major, 
+    col_minor, shape_major, shape_minor, perc_all, perc_major
+    )
+```
+
+```{r}
+col_lab_minor <- display_tbl_flow$col_major |>
+  stats::setNames(display_tbl_flow$major_minor)
+
+shape_lab_minor <- display_tbl_flow$shape_minor |>
+  stats::setNames(display_tbl_flow$major_minor)
+
+display_tbl_flow_major <- display_tbl_flow |>
+  dplyr::group_by(major) |>
+  dplyr::slice(1) |>
+  dplyr::ungroup()
+
+col_lab_major <- display_tbl_flow_major$col_major |>
+  stats::setNames(display_tbl_flow_major$major)
+
+shape_lab_major <- display_tbl_flow_major$shape_major |>
+  stats::setNames(display_tbl_flow_major$major)
+
+```
+
+
+```{r}
+#147-153
+cyt_small <- cyt[sample.int(nrow(cyt), size = 1e4), ]
+
+mat_flow_small <- cyt_small %>%
+  select(-c(major_minor, major, minor)) %>%
+  as.matrix()
+
+cyt_dimred_small <- cyt_small %>%
+  select(major_minor, major, minor)
+```
+
+```{r}
+# 258-272
+# PCA
+start_time <- Sys.time()
+pca_small <- stats::prcomp(
+  mat_flow_small,
+  center = TRUE,
+  scale. = FALSE
+)
+
+end_time <- Sys.time()
+
+total_time <- as.numeric(end_time - start_time)
+
+cyt_dimred_small <- cyt_dimred_small %>%
+  mutate(
+    pca_1 = pca_small$x[, 1], 
+    pca_2 = pca_small$x[, 2],
+    pca_time = total_time
+  )
+```
+
+```{r}
+library(cowplot)
+
+p1 <- ggplot(cyt_dimred_small, 
+            aes(x = pca_1, y= pca_2)) +
+  theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_point(
+    aes(col = major_minor, shape = major),
+    size = 2.5,
+    alpha = 0.8
+  ) +
+  scale_color_manual(values = col_lab_minor) +
+  scale_shape_manual(values = shape_lab_major) +
+  ggrepel::geom_text_repel(
+    data = cyt_dimred_small %>%
+      group_by(major_minor, major, minor) %>%
+      summarise(
+        pca_1_mean = mean(pca_1),
+        pca_2_mean = mean(pca_2),
+        .groups = "drop"
+      ),
+    aes(x = pca_1_mean, y = pca_2_mean, label = major_minor),
+    size = 2.5, alpha = 0.8, inherit.aes = FALSE
+  ) +
+  theme(
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "PCA of Flow Cytometry data",
+    x = "PCA 1",
+    y = "PCA 2",
+    color = "Cell type",
+    shape = "Major Cell Type"
+  ) +
+  coord_equal()
+p1
+```
+
+
+```{r}
+# facet by major pop
+p2 <- ggplot(cyt_dimred_small,
+            aes(x = pca_1, y = pca_2)) +
+  theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_point(
+    aes(col = major_minor, shape = major),
+    size = 2.5,
+    alpha = 0.8
+  ) +
+  ggrepel::geom_text_repel(
+    data = cyt_dimred_small %>%
+      group_by(major_minor, major, minor) %>%
+      summarise(
+        pca_1_mean = mean(pca_1),
+        pca_2_mean = mean(pca_2),
+        .groups = "drop"
+      ),
+    aes(x = pca_1_mean, y = pca_2_mean, label = major_minor),
+    size = 2.5, alpha = 0.8, inherit.aes = FALSE
+  ) +
+  scale_color_manual(values = col_lab_minor) +
+  scale_shape_manual(values = shape_lab_major) +
+  facet_wrap(~major, ncol =3, scales = "free") +
+  labs(
+    title = "PCA of Flow Cytometry data",
+    x = "PCA 1",
+    y = "PCA 2",
+    color = "Cell type",
+    shape = "Major Cell Type"
+  ) +
+  theme(
+    legend.position = "none"
+  )
+
+p2
+```
+
+```{r}
+# Som
+# probably not the best
+library(kohonen)
+
+som_flow <- kohonen::som(
+  X = mat+flow_small
+)
+```
+
+
+## Autoencoder
+
+```{r}
+library(reticulate)
+reticulate::use_virtualenv("r-keras", required = TRUE) 
+```
+
+```{r}
+# Install keras and tensorflow if not already installed
+library(keras)
+```
+
+
+```{r}
+# Prepare data: scale the data between 0 and 1
+mat_flow_small_scaled <- scale(mat_flow_small)
+```
+
+
+```{r}
+# Check number of features
+ncol(mat_flow_small_scaled) # 17
+
+# Build the Autoencoder model
+# Define the encoder
+input_layer <- layer_input(shape = 17)
+encoder <- input_layer %>%
+  layer_dense(units = 64, activation = 'relu') %>%
+  layer_dense(units = 2, activation = 'relu') #can change this based on how much compression you want
+
+# Define the decoder
+decoder <- encoder %>%
+  layer_dense(units = 64, activation = 'relu') %>%
+  layer_dense(units = input_dim, activation = 'sigmoid')
+
+# Combine encoder and decoder into an autoencoder model
+autoencoder <- keras_model(input_layer, decoder)
+
+# Compile the model
+autoencoder %>% compile(
+  optimizer = 'adam',
+  loss = 'mean_squared_error'
+)
+
+# Train the autoencoder
+autoencoder %>% fit(
+  x = mat_flow_small_scaled, 
+  y = mat_flow_small_scaled,
+  epochs = 50,
+  batch_size = 256,
+  validation_split = 0.2
+)
+
+# Create encoder model to extract compressed features
+encoder_model <- keras_model(input_layer, encoder)
+
+# Get compressed features
+compressed_features <- encoder_model %>% predict(mat_flow_small_scaled)
+
+# Add compressed features to the original data
+cyt_dimred_small <- cyt_dimred_small %>%
+  mutate(
+    autoenc_1 = compressed_features[, 1], 
+    autoenc_2 = compressed_features[, 2]
+  )
+
+# Visualize the autoencoder results
+p3 <- ggplot(cyt_dimred_small, aes(x = autoenc_1, y = autoenc_2)) +
+  theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_point(
+    aes(col = major_minor, shape = major),
+    size = 2.5,
+    alpha = 0.8
+  ) +
+  scale_color_manual(values = col_lab_minor) +
+  scale_shape_manual(values = shape_lab_major) +
+  ggrepel::geom_text_repel(
+    data = cyt_dimred_small %>%
+      group_by(major_minor, major, minor) %>%
+      summarise(
+        autoenc_1_mean = mean(autoenc_1),
+        autoenc_2_mean = mean(autoenc_2),
+        .groups = "drop"
+      ),
+    aes(x = autoenc_1_mean, y = autoenc_2_mean, label = major_minor),
+    size = 2.5, alpha = 0.8, inherit.aes = FALSE
+  ) +
+  theme(
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "Autoencoder of Flow Cytometry Data",
+    x = "Autoencoder 1",
+    y = "Autoencoder 2",
+    color = "Cell Type",
+    shape = "Major Cell Type"
+  ) +
+  coord_equal()
+
+p3
+
+```
+
+## MDS
+
+```{r}
+# Load necessary library
+library(MASS)
+
+# Compute the distance matrix (euclidean distance in this case)
+dist_matrix <- dist(mat_flow_small)
+
+# Apply MDS
+mds_result <- cmdscale(dist_matrix, k = 2)  # k = 2 for 2D scaling
+
+# Add MDS dimensions to the dataset
+cyt_dimred_small <- cyt_dimred_small %>%
+  mutate(
+    mds_1 = mds_result[, 1], 
+    mds_2 = mds_result[, 2]
+  )
+
+# Visualize the MDS result
+p_mds <- ggplot(cyt_dimred_small, aes(x = mds_1, y = mds_2)) +
+  theme_cowplot() +
+  cowplot::background_grid(major = "xy") +
+  geom_point(
+    aes(col = major_minor, shape = major),
+    size = 2.5,
+    alpha = 0.8
+  ) +
+  scale_color_manual(values = col_lab_minor) +
+  scale_shape_manual(values = shape_lab_major) +
+  ggrepel::geom_text_repel(
+    data = cyt_dimred_small %>%
+      group_by(major_minor, major, minor) %>%
+      summarise(
+        mds_1_mean = mean(mds_1),
+        mds_2_mean = mean(mds_2),
+        .groups = "drop"
+      ),
+    aes(x = mds_1_mean, y = mds_2_mean, label = major_minor),
+    size = 2.5, alpha = 0.8, inherit.aes = FALSE
+  ) +
+  theme(
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "MDS of Flow Cytometry Data",
+    x = "MDS 1",
+    y = "MDS 2",
+    color = "Cell Type",
+    shape = "Major Cell Type"
+  ) +
+  coord_equal()
+
+p_mds
+
+```
+
+
+
+## Exploratory Data Analysis
+
+## Methods
+
